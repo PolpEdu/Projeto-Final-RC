@@ -1,10 +1,4 @@
 #include "funcs.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <unistd.h>
 /*
     Adicionar um utilizador com uma identificação e uma password, bem como especificar a que
     mercados pode ter acesso (no máximo existem 2 mercados diferentes) e o saldo da sua
@@ -26,7 +20,26 @@
 
 int main(int argc, char *argv[])
 {
-    printf("Starting the Server on PORT: %d\nInitializing Database.\n", PORT);
+    if(argc != 4)
+    {
+        printf("Usage: ./stock_server <PORT_ADMIN> <PORT_CLIENT> <config_file>\n");
+        exit(-1);
+    }
+
+    int PORT = atoi(argv[1]);
+    int PORT_ADMIN = atoi(argv[2]);
+    char *config_file = argv[3];
+
+
+    // read the database
+    FILE *fp = fopen(config_file, "r");
+    // check if something went wrong
+    if(fp == NULL)
+    {
+        printf("Error opening file.\n");
+        exit(-1);
+    }
+
     int initial_users_number = 0;
     struct RootUser *root;
     root = malloc(sizeof(struct RootUser));
@@ -41,10 +54,8 @@ int main(int argc, char *argv[])
     acao_list->next = NULL;
     acao_list->acao = NULL;
 
-    // read the database
-    FILE *fp = fopen("database.txt", "r");
+    
     char line[256];
-
     int i = 0;
     while (fgets(line, sizeof(line), fp))
     {
@@ -140,164 +151,30 @@ int main(int argc, char *argv[])
 
         i++;
     }
-    /*
-        // list the root user, all the normal users, and all the stocks
-        printf("Root user: %s\n", root->name);
+    // list the root user, all the normal users, and all the stocks
+    printf("Root user: %s %s\n", root->name, root->password);
 
-        printf("List of stocks:\n");
-        list_stocks(acao_list);
+    printf("List of stocks:\n");
+    list_stocks(acao_list);
 
-        // print all the users
-        printf("List of users:\n");
-        list_users(users_list);
-    */
+    // print all the users
+    printf("List of users:\n");
+    list_users(users_list);
 
-    // server start:
-    struct sockaddr_in si_minha, si_outra;
 
-    int s, recv_len;
-    socklen_t slen = sizeof(si_outra);
-    char buf[BUFLEN];
 
-    // Cria um socket para recepção de pacotes UDP
-    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-    {
-        erro("Erro na criação do socket");
+    //create two processes, 1 for tcp and one for udp
+    if(fork()==0) {
+        // tcp - clientes non admin 9876
+        tcp_server(PORT, acao_list, users_list, root);
     }
-
-    // Preenchimento da socket address structure
-    si_minha.sin_family = AF_INET;
-    si_minha.sin_port = htons(PORT);
-    si_minha.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    // Associa o socket à informação de endereço
-    if (bind(s, (struct sockaddr *)&si_minha, sizeof(si_minha)) == -1)
-    {
-        erro("Erro no bind");
+    else if(fork()==0) {
+        // udp - clientes admin 9877
+        udp_server(PORT_ADMIN, acao_list, users_list, root);
     }
-
-    char *username;
-    char *password;
-    char *saldo;
-    char *bolsas;
-
-    char cChar;
-    printf("Server waiting for packets \n");
-
-    while (1) {
-
-        // Espera recepção de mensagem (a chamada é bloqueante)
-        if((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_outra, (socklen_t *)&slen)) == -1) {
-            erro("Erro no recvfrom");
-        }
-        
-        // Para ignorar o restante conteúdo (anterior do buffer)
-        buf[recv_len]='\0';
-
-        if(strcmp(buf, "X")==0) {
-            continue;
-        }
-
-        printf("[%s:%d] %s\n", inet_ntoa(si_outra.sin_addr), ntohs(si_outra.sin_port),buf);
-
-        
-        char *command = strtok(buf, " \n");
-
-
-        // comand has this format ADD_USER {username} {password} {saldo} {bolsas}
-        if (strcmp(command, "ADD_USER") == 0)
-        {
-
-            username = strtok(NULL, " ");
-            password = strtok(NULL, " ");
-            saldo = strtok(NULL, " ");
-            bolsas = strtok(NULL, " ");
-
-
-            if (bolsas == NULL)
-            {
-                bolsas = malloc(1);
-                bolsas[0] = '\0';
-            }
-            else{
-                // remove \n from bolsas and replace it with \0
-                bolsas[strlen(bolsas)-1] = '\0';
-
-            }
-
-            //printf("%s %s %s %s\n", username, password, saldo, bolsas);
-
-            if (user_exists(username, users_list))
-            {
-                printf("User already exists!\n");
-                continue;
-            }
-
-            // printf("User: %s Password: %s Saldo: %s\n", username, password, saldo);
-
-            struct NormalUser *user = malloc(sizeof(struct NormalUser));
-            user->name = malloc(strlen(username) + 1);
-            strcpy(user->name, username);
-            user->password = malloc(strlen(password) + 1);
-            strcpy(user->password, password);
-            int saldo_int = atoi(saldo);
-            if (saldo_int < 0)
-            {
-                printf("The saldo is invalid!\n");
-                return -1;
-            }
-            user->saldo = saldo_int;
-
-            user->bolsa = malloc(strlen(bolsas) + 1);
-            strcpy(user->bolsa, bolsas);
-
-
-            append_user(users_list, user);
-
-            save_to_file(users_list, acao_list, root);
-        }
-        // comand has this format DEL {username}
-        else if (strcmp(command, "DEL") == 0)
-        {
-            username = strtok(NULL, " ");
-            //find \n and replace it with \0
-            username[strlen(username)-1] = '\0';
-            
-
-            if (!user_exists(username, users_list))
-            {
-                printf("User does not exist!\n");
-                continue;
-            }
-            printf("Deleting User: %s\n", username);
-            delete_user(users_list, username);
-
-            save_to_file(users_list, acao_list, root);
-        }
-        // comand has this format LIST
-        else if (strcmp(command, "LIST") == 0)
-        {
-            list_users(users_list);
-        }
-        // comand has this format REFRESH {segundos}
-        else if (strcmp(command, "REFRESH") == 0)
-        {
-            char *segundos = strtok(NULL, " ");
-            refresh_time(segundos);
-        }
-        // comand has this format QUIT
-        else if (strcmp(command, "QUIT") == 0)
-        {
-            break;
-        }
-        else if (strcmp(command, "QUIT_SERVER") == 0)
-        { // qual é a diferença?
-            return 1;
-        }
-        else
-        {
-            printf("Invalid command: %s\n", command);
-        }
+    // parent process
+    while(1){
+        wait(NULL);
     }
     return 0;
 }

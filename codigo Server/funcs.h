@@ -1,13 +1,21 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #ifndef FOO_H
 #define FOO_H
 
 #define MAX_COMMAND_LENGTH 50
 #define BUFLEN 512
-#define PORT 9876
+#define BUF_SIZE	1024
+#include <errno.h>
+#include "funcs.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <stddef.h>
+#include <sys/shm.h>
 
 struct RootUser
 {
@@ -38,6 +46,11 @@ struct AcaoList
     struct AcaoList *next;
 };
 
+int shmid;
+
+int check_valid_admin_cred(struct RootUser *root_user, char *username, char *password) ;
+int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root);
+void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root);
 void erro(char *msg);
 void delete_user(struct UsrList *users_list, char *username);
 void list_users(struct UsrList *users_list);

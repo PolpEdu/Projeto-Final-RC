@@ -1,4 +1,4 @@
-admin/admin_password
+admin/pass
 7
 User1;pass1;32
 User2;pass2;20
