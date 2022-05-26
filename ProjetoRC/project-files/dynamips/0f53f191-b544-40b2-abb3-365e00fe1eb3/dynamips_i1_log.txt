@@ -1,0 +1,56 @@
+Apr 07 11:59:10.827 HYPERVISOR: Release 0.2.21-amd64/Linux (tag 2019071212)
+Apr 07 11:59:10.827 HYPERVISOR: Started on IP = localhost, TCP port = 56503.
+Apr 07 11:59:10.829 HYPERVISOR: exec_cmd: hypervisor version 
+Apr 07 11:59:10.829 HYPERVISOR: exec_cmd: hypervisor working_dir /home/user/GNS3/projects/ProjetoRC/project-files/dynamips 
+Apr 07 11:59:10.829 GENERAL: working_dir=/home/user/GNS3/projects/ProjetoRC/project-files/dynamips
+Apr 07 11:59:10.829 HYPERVISOR: exec_cmd: hypervisor working_dir /home/user/GNS3/projects/ProjetoRC/project-files/dynamips/0f53f191-b544-40b2-abb3-365e00fe1eb3 
+Apr 07 11:59:10.829 GENERAL: working_dir=/home/user/GNS3/projects/ProjetoRC/project-files/dynamips/0f53f191-b544-40b2-abb3-365e00fe1eb3
+Apr 07 11:59:10.829 HYPERVISOR: exec_cmd: vm create R1 1 c2600 
+Apr 07 11:59:10.829 VM: VM R1 created.
+Apr 07 11:59:10.830 HYPERVISOR: exec_cmd: vm set_con_tcp_port R1 5000 
+Apr 07 11:59:10.830 HYPERVISOR: exec_cmd: c2600 get_mac_addr R1 
+Apr 07 11:59:10.830 HYPERVISOR: exec_cmd: vm get_status R1 
+Apr 07 11:59:10.830 HYPERVISOR: exec_cmd: vm set_idle_pc R1 0x81879690 
+Apr 07 11:59:10.830 HYPERVISOR: exec_cmd: vm set_ios R1 /home/user/GNS3/images/IOS/c2600_v2.image 
+Apr 07 11:59:10.831 HYPERVISOR: exec_cmd: c2600 set_iomem R1 5 
+Apr 07 11:59:10.831 HYPERVISOR: exec_cmd: c2600 set_mac_addr R1 c801.072b.0000 
+Apr 07 11:59:10.831 HYPERVISOR: exec_cmd: vm set_ram R1 160 
+Apr 07 11:59:10.831 HYPERVISOR: exec_cmd: vm get_status R1 
+Apr 07 11:59:10.832 HYPERVISOR: exec_cmd: vm slot_add_binding R1 1 0 NM-1FE-TX 
+Apr 07 11:59:10.832 HYPERVISOR: exec_cmd: vm set_sparse_mem R1 1 
+Apr 07 11:59:10.832 HYPERVISOR: exec_cmd: vm get_status R1 
+Apr 07 11:59:10.832 HYPERVISOR: exec_cmd: vm slot_add_binding R1 0 16 WIC-1T 
+Apr 07 11:59:11.404 HYPERVISOR: exec_cmd: nio create_udp udp-3a113d11-e799-4ee6-8a71-c6d28fc19be4 10002 127.0.0.1 10003 
+Apr 07 11:59:11.621 HYPERVISOR: exec_cmd: vm slot_add_nio_binding R1 0 0 udp-3a113d11-e799-4ee6-8a71-c6d28fc19be4 
+Apr 07 11:59:11.622 HYPERVISOR: exec_cmd: vm get_status R1 
+Apr 07 11:59:11.690 HYPERVISOR: exec_cmd: nio create_udp udp-e395085f-1eb5-4eab-b7e9-612ee6800809 10006 127.0.0.1 10007 
+Apr 07 11:59:11.691 HYPERVISOR: exec_cmd: vm slot_add_nio_binding R1 1 0 udp-e395085f-1eb5-4eab-b7e9-612ee6800809 
+Apr 07 11:59:11.692 HYPERVISOR: exec_cmd: vm get_status R1 
+Apr 07 11:59:16.525 HYPERVISOR: exec_cmd: vm create Ghost 0 c2600 
+Apr 07 11:59:16.525 VM: VM Ghost created.
+Apr 07 11:59:16.532 HYPERVISOR: exec_cmd: vm set_ios Ghost /home/user/GNS3/images/IOS/c2600_v2.image 
+Apr 07 11:59:16.552 HYPERVISOR: exec_cmd: vm set_ghost_status Ghost 1 
+Apr 07 11:59:16.557 HYPERVISOR: exec_cmd: vm set_ghost_file Ghost /home/user/GNS3/projects/ProjetoRC/project-files/dynamips/c2600_v2.image-160.ghost 
+Apr 07 11:59:16.573 HYPERVISOR: exec_cmd: vm set_ram Ghost 160 
+Apr 07 11:59:16.576 HYPERVISOR: exec_cmd: vm get_status Ghost 
+Apr 07 11:59:16.577 HYPERVISOR: exec_cmd: vm set_config Ghost configs/i0_startup-config.cfg 
+Apr 07 11:59:16.577 HYPERVISOR: exec_cmd: vm start Ghost 
+Apr 07 11:59:16.797 HYPERVISOR: exec_cmd: vm get_status Ghost 
+Apr 07 11:59:16.797 HYPERVISOR: exec_cmd: vm stop Ghost 
+Apr 07 11:59:17.190 VM: VM Ghost shutdown.
+Apr 07 11:59:17.202 HYPERVISOR: exec_cmd: vm extract_config Ghost 
+Apr 07 11:59:17.203 HYPERVISOR: exec_cmd: vm clean_delete Ghost 
+Apr 07 11:59:17.203 VM: VM Ghost destroyed.
+Apr 07 11:59:17.213 HYPERVISOR: exec_cmd: vm set_ghost_status R1 2 
+Apr 07 11:59:17.213 HYPERVISOR: exec_cmd: vm set_ghost_file R1 /home/user/GNS3/projects/ProjetoRC/project-files/dynamips/c2600_v2.image-160.ghost 
+Apr 07 11:59:17.221 HYPERVISOR: exec_cmd: vm get_status R1 
+Apr 07 11:59:17.222 HYPERVISOR: exec_cmd: vm set_config R1 configs/i1_startup-config.cfg 
+Apr 07 11:59:17.222 HYPERVISOR: exec_cmd: vm start R1 
+Apr 07 11:59:17.230 GHOST: loaded ghost image /home/user/GNS3/projects/ProjetoRC/project-files/dynamips/c2600_v2.image-160.ghost (fd=13) at addr=0x7f1662000000 (size=0xa000000)
+Apr 07 11:59:17.230 GHOST: loaded image /home/user/GNS3/projects/ProjetoRC/project-files/dynamips/c2600_v2.image-160.ghost successfully.
+Apr 07 11:59:47.491 HYPERVISOR: exec_cmd: vm extract_config R1 
+Apr 07 11:59:56.215 HYPERVISOR: exec_cmd: vm get_status R1 
+Apr 07 11:59:56.218 HYPERVISOR: exec_cmd: vm stop R1 
+Apr 07 11:59:56.301 GHOST: unloaded ghost image /home/user/GNS3/projects/ProjetoRC/project-files/dynamips/c2600_v2.image-160.ghost (fd=13) at addr=0x7f1662000000 (size=0xa000000)
+Apr 07 11:59:56.444 VM: VM R1 shutdown.
+Apr 07 11:59:56.445 HYPERVISOR: exec_cmd: vm extract_config R1 

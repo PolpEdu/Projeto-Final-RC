@@ -1,0 +1,14 @@
+admin/admin_password
+7
+User1;pass1;32
+User2;pass2;20
+Lol;xd;20;a
+dksja;kjd;20;a
+djskd;djk;20;a
+lmao;2;0;a
+ROdrigo;20;20;20
+bvl;stock_bvl_2;10.000000
+bvl;stock_bvl_3;10.000000
+nyse;stock_nyse_1;10.000000
+nyse;stock_nyse_2;10.000000
+nyse;stock_nyse_3;10.000000
