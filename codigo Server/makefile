@@ -1,10 +1,10 @@
 
 OBJS=	funcs.h main.c funcs.c 
+FLAGS = -Wall -pthread
 OBJSclient = client.c
 GCC=	gcc
 PROG= 	stock_server
 PROGC = operations_terminal
-FLAGS 	= -Wall -pthread -lm -lrt
 
 all:	${PROG} ${PROGC}
 
@@ -14,9 +14,9 @@ clear:
 	rm -f ${PROGC}
 
 ${PROG}:	${OBJS}
-			${GCC} -o ${PROG} ${OBJS}
+			${GCC} ${FLAGS} -o ${PROG} ${OBJS}
 ${PROGC}:	${OBJSclient}
-			${GCC} -o ${PROGC} ${OBJSclient}
+			${GCC} ${FLAGS} -o ${PROGC} ${OBJSclient}
 
 
 .c.o:

@@ -14,7 +14,6 @@ void process_client(int client_fd, struct AcaoList *acao_list, struct UsrList *u
 {
     int nread = 1;
     char buffer[BUF_SIZE];
-    char *message = malloc(sizeof(char) * BUF_SIZE + 1);
     char *token;
     char username[BUF_SIZE];
     char password[BUF_SIZE];
@@ -239,8 +238,6 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
     char *bolsas;
     char *bolsas2;
 
-    char cChar;
-
     printf("[SERVER UDP] Waiting for packets\n");
 
     sendto(s, "Please Authenticate in this format: \"username\";\"password\"", 19, 0, (struct sockaddr *)&si_outra, slen);
@@ -421,6 +418,7 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
             printf("[CLIENT] Invalid command: %s\n", command);
         }
     }
+    return 0;
 }
 
 void *feed_thread(void *arg)
@@ -488,7 +486,7 @@ int get_number_of_users()
 struct NormalUser *get_user_by_name(char *username, struct UsrList *users_list)
 {
     struct UsrList *aux = users_list->next;
-    printf("[CLIENT] Getting user by name: %s\n", username);
+    // printf("[CLIENT] Getting user by name: %s\n", username);
     while (aux != NULL)
     {
         printf("%s\n", aux->user->name);
@@ -575,7 +573,6 @@ void *pricesVolutality()
 {
     while (1)
     {
-        pthread_mutex_lock(&pricesmutex);
         sleep(shm->refresh_time);
         // loop through acoes
         struct AcaoList *aux = shm->acao_list;
@@ -589,8 +586,6 @@ void *pricesVolutality()
         }
 
         save_to_file();
-
-        pthread_mutex_unlock(&pricesmutex);
     }
 }
 

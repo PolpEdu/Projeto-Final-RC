@@ -41,9 +41,13 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    pthread_t refresh;
-    pthread_create(&refresh, NULL, pricesVolutality, NULL);
-
+    /* pthread_t refresh;
+    if (pthread_create(&refresh, NULL, pricesVolutality, NULL) != 0)
+    {
+        printf("\ncan't create thread\n");
+        exit(-1);
+    }
+ */
     int initial_users_number = 0;
     struct RootUser *root;
     root = malloc(sizeof(struct RootUser));
@@ -211,6 +215,6 @@ int main(int argc, char *argv[])
         wait(NULL);
     }
 
-    pthread_join(refresh, NULL);
+    /* pthread_join(refresh, NULL); */
     return 0;
 }

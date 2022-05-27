@@ -110,9 +110,8 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  // check the bolsas of the user
-
   // check if server asked for the list of users
+  // TODO: isto sai bugoso, dar fix:
   do
   {
     n = read(fd, buffer, BUFLEN);
@@ -146,6 +145,11 @@ int main(int argc, char *argv[])
     {
       write(fd, buffer, strlen(buffer) + 1);
     }
+
+    n = read(fd, buffer, BUFLEN - 1);
+    buffer[n] = '\0';
+    printf("%s\n", buffer);
+    fflush(stdout);
   }
 
   close(fd);
