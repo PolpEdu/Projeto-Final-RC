@@ -4,6 +4,7 @@ OBJSclient = client.c
 GCC=	gcc
 PROG= 	stock_server
 PROGC = operations_terminal
+FLAGS 	= -Wall -pthread -lm -lrt
 
 all:	${PROG} ${PROGC}
 
@@ -22,6 +23,6 @@ ${PROGC}:	${OBJSclient}
 			${GCC} -c $< -c -o $@
 
 make: 	${OBJS}
-	${GCC} ${OBJS} -O ${PROG}
-	${GCC} ${OBJSclient} -O ${PROGC}
+	${GCC} ${FLAGS} ${OBJS} -O ${PROG}
+	${GCC} ${FLAGS} ${OBJSclient} -O ${PROGC}
 	

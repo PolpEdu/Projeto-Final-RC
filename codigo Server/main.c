@@ -1,4 +1,5 @@
 #include "funcs.h"
+
 /*
     Adicionar um utilizador com uma identificação e uma password, bem como especificar a que
     mercados pode ter acesso (no máximo existem 2 mercados diferentes) e o saldo da sua
@@ -20,7 +21,8 @@
 
 int main(int argc, char *argv[])
 {
-    if(argc != 4)
+
+    if (argc != 4)
     {
         printf("Usage: ./stock_server <PORT_ADMIN> <PORT_CLIENT> <config_file>\n");
         exit(-1);
@@ -30,15 +32,17 @@ int main(int argc, char *argv[])
     int PORT_ADMIN = atoi(argv[2]);
     char *config_file = argv[3];
 
-
     // read the database
     FILE *fp = fopen(config_file, "r");
     // check if something went wrong
-    if(fp == NULL)
+    if (fp == NULL)
     {
         printf("Error opening file.\n");
         exit(-1);
     }
+
+    pthread_t refresh;
+    pthread_create(&refresh, NULL, pricesVolutality, NULL);
 
     int initial_users_number = 0;
     struct RootUser *root;
@@ -54,17 +58,15 @@ int main(int argc, char *argv[])
     acao_list->next = NULL;
     acao_list->acao = NULL;
 
-    
     char line[256];
     int i = 0;
     while (fgets(line, sizeof(line), fp))
     {
-        //if you fget only \n
+        // if you fget only \n
         if (line[0] == '\n')
         {
             continue;
         }
-
 
         if (i == 0)
         {
@@ -75,7 +77,10 @@ int main(int argc, char *argv[])
             root->name = malloc(strlen(name) + 1);
             strcpy(root->name, name);
             root->password = malloc(strlen(pass) + 1);
+
+            // replace last char with \0
             strcpy(root->password, pass);
+            pass[strlen(pass) - 1] = '\0';
         }
         else if (i == 1)
         {
@@ -98,12 +103,12 @@ int main(int argc, char *argv[])
                 return -1;
             }
 
-            // user: User1;pass1;1000
+            // user: User1;pass1;1000;BINANCE;FTX
             char *name = strtok(line, ";");
             char *pass = strtok(NULL, ";");
             char *saldo = strtok(NULL, ";");
             char *bolsas = strtok(NULL, ";");
-            
+            char *bolsas2 = strtok(NULL, ";");
 
             // read line
             struct NormalUser *user = malloc(sizeof(struct NormalUser));
@@ -116,14 +121,26 @@ int main(int argc, char *argv[])
 
             if (bolsas == NULL)
             {
-                user->bolsa = NULL;
+                user->bolsa1 = NULL;
             }
             else
             {
-                //remove \n from bolsas
+                // remove \n from bolsas
                 bolsas[strlen(bolsas) - 1] = '\0';
-                user->bolsa = malloc(strlen(bolsas) + 1);
-                strcpy(user->bolsa, bolsas);
+                user->bolsa1 = malloc(strlen(bolsas) + 1);
+                strcpy(user->bolsa1, bolsas);
+            }
+
+            if (bolsas2 == NULL)
+            {
+                user->bolsa2 = NULL;
+            }
+            else
+            {
+                // remove \n from bolsas
+                bolsas2[strlen(bolsas2) - 1] = '\0';
+                user->bolsa2 = malloc(strlen(bolsas2) + 1);
+                strcpy(user->bolsa2, bolsas2);
             }
 
             // append to the list
@@ -161,20 +178,39 @@ int main(int argc, char *argv[])
     printf("List of users:\n");
     list_users(users_list);
 
+    // assign to shared the memory
+    int shmid = shmget(IPC_PRIVATE, sizeof(struct SharedMemory), IPC_CREAT | 0700);
+    if (shmid == -1)
+    {
+        perror("shmget");
+        exit(1);
+    }
+    shm = (struct SharedMemory *)shmat(shmid, NULL, 0);
 
+    sem_init(&shm->sem_write, 1, 1);
 
-    //create two processes, 1 for tcp and one for udp
-    if(fork()==0) {
+    shm->users_list = users_list;
+    shm->acao_list = acao_list;
+    shm->root = root;
+    shm->refresh_time = 3;
+
+    // create two processes, 1 for tcp and one for udp
+    if (fork() == 0)
+    {
         // tcp - clientes non admin 9876
         tcp_server(PORT, acao_list, users_list, root);
     }
-    else if(fork()==0) {
+    else if (fork() == 0)
+    {
         // udp - clientes admin 9877
         udp_server(PORT_ADMIN, acao_list, users_list, root);
     }
     // parent process
-    while(1){
+    while (1)
+    {
         wait(NULL);
     }
+
+    pthread_join(refresh, NULL);
     return 0;
 }
