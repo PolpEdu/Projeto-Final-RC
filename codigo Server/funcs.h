@@ -28,6 +28,7 @@ struct NormalUser
     char *password;
     int saldo;
     char *bolsa;
+
 };
 struct Acao
 {
