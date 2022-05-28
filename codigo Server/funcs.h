@@ -21,8 +21,19 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
 
 #define MAXBOLSAS 6
+#define GROUP1 "239.0.0.1"
+#define GROUP2 "239.0.0.2"
+#define GROUP3 "239.0.0.3"
+#define GROUP4 "239.0.0.4"
+#define GROUP5 "239.0.0.5"
+#define GROUP6 "239.0.0.6"
 
 struct RootUser
 {
@@ -71,6 +82,13 @@ struct SharedMemory
 };
 
 struct SharedMemory *shm;
+struct sockaddr_in si_minha;
+struct sockaddr_in si_outra;
+struct sockaddr_in addr;
+struct sockaddr_in client_addr;
+struct hostent *hostPtr;
+struct ip_mreq mreq;
+
 
 void *pricesVolutality();
 void *feed_thread(void *arg);

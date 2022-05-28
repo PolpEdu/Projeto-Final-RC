@@ -168,6 +168,7 @@ void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *user
     int fd, client;
     struct sockaddr_in addr, client_addr;
     int client_addr_size;
+    /* pthread_t feed; */
 
     bzero((void *)&addr, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -183,6 +184,7 @@ void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *user
         erro("na funcao listen");
     client_addr_size = sizeof(client_addr);
     printf("[SERVER TCP] Started.\n");
+    /* pthread_create(&feed, NULL, feed_thread, NULL); */
     while (1)
     {
         // clean finished child processes, avoiding zombies
@@ -207,98 +209,63 @@ void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *user
 
 int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root)
 {
-
-    // server start:
-    struct sockaddr_in si_minha, si_outra;
-
+    
     int s, recv_len;
     socklen_t slen = sizeof(si_outra);
     char buf[BUFLEN];
 
     // Cria um socket para recepção de pacotes UDP
-    if ((s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
         erro("Erro na criação do socket do cliente.");
     }
 
     // Preenchimento da socket address structure
-    si_minha.sin_family = PF_INET;
+    si_minha.sin_family = AF_INET;
     si_minha.sin_port = htons(PORT);
     si_minha.sin_addr.s_addr = htonl(INADDR_ANY);
 
     // Associa o socket à informação de endereço
     if (bind(s, (struct sockaddr *)&si_minha, sizeof(si_minha)) == -1)
     {
-        erro("Erro no bind do cliente.");
+        erro("Erro no bind do cliente");
     }
 
-    char *username;
+
+    printf("[SERVER UDP] Waiting for packets\n");
+
+   while(1){
+        if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen)) == -1)
+        {
+        erro("Erro no recvfrom");
+        }
+        
+        buf[recv_len] = '\0';
+        if (strcmp(buf, "X") == 0){
+        continue;
+        }
+        else{break;}
+        
+    }
+    
+    // ask for authentication (if not, send error message)
+
+    while(1) {
+        if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen)) == -1)
+        {
+        erro("Erro no recvfrom");
+        }
+        buf[recv_len] = '\0';
+
+        char *username;
     char *password;
     char *saldo;
     char *bolsas;
     char *bolsas2;
-
-    printf("[SERVER UDP] Waiting for packets\n");
-
-    sendto(s, "Please Authenticate in this format: \"username\";\"password\"", 19, 0, (struct sockaddr *)&si_outra, slen);
-    // Espera recepção de mensagem (a chamada é bloqueante)
-    if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen)) == -1)
-    {
-        erro("[CLIENT] Erro no recvfrom");
-    }
-    // Para ignorar o restante conteúdo (anterior do buffer)
-    buf[recv_len] = '\0';
-
-    // ask for authentication (if not, send error message)
-    if (strcmp(buf, "AUTH") == 0)
-    {
-        printf("[SERVER UDP] AUTH\n");
-        // send to the client asking for auth
-        sendto(s, "AUTH", 5, 0, (struct sockaddr *)&si_outra, slen);
-        // receive the answer
-        recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen);
-        buf[recv_len] = '\0';
-        // split buffer with ;
-        char *token;
-        token = strtok(buf, ";");
-        username = token;
-        token = strtok(NULL, ";");
-        password = token;
-    }
-    else
-    {
-        printf("[SERVER UDP] AUTH FAILED\n");
-        sendto(s, "AUTH FAILED", 12, 0, (struct sockaddr *)&si_outra, slen);
-        return 0;
-    }
-
-    if (check_valid_admin_cred(root, username, password))
-    {
-        // send OK
-        sendto(s, "OK", 2, 0, (struct sockaddr *)&si_outra, slen);
-    }
-    else
-    {
-        // send FAIL
-        sendto(s, "FAIL", 4, 0, (struct sockaddr *)&si_outra, slen);
-    }
-
-    while (1)
-    {
-
-        // Espera recepção de mensagem (a chamada é bloqueante)
-        if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen)) == -1)
-        {
-            erro("[CLIENT] Erro no recvfrom");
+        if (strcmp(buf, "X") == 0){
+        continue;
         }
-
-        // Para ignorar o restante conteúdo (anterior do buffer)
-        buf[recv_len] = '\0';
-
-        if (strcmp(buf, "X") == 0)
-        {
-            continue;
-        }
+        else{break;}
 
         printf("Client[%s:%d] %s\n", inet_ntoa(si_outra.sin_addr), ntohs(si_outra.sin_port), buf);
 
@@ -418,8 +385,45 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
             printf("[CLIENT] Invalid command: %s\n", command);
         }
     }
+    close(s);
     return 0;
 }
+
+    /* if (strcmp(buf, "AUTH") == 0)
+    {
+        printf("[SERVER UDP] AUTH\n");
+        // send to the client asking for auth
+        sendto(s, "AUTH", 5, 0, (struct sockaddr *)&si_outra, slen);
+        // receive the answer
+        recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen);
+        buf[recv_len] = '\0';
+        // split buffer with ;
+        char *token;
+        token = strtok(buf, ";");
+        username = token;
+        token = strtok(NULL, ";");
+        password = token;
+    }
+    else
+    {
+        printf("[SERVER UDP] AUTH FAILED\n");
+        sendto(s, "AUTH FAILED", 12, 0, (struct sockaddr *)&si_outra, slen);
+        return 0;
+    }
+
+    if (check_valid_admin_cred(root, username, password))
+    {
+        // send OK
+        sendto(s, "OK", 2, 0, (struct sockaddr *)&si_outra, slen);
+    }
+    else
+    {
+        // send FAIL
+        sendto(s, "FAIL", 4, 0, (struct sockaddr *)&si_outra, slen);
+    }
+ */
+
+        
 
 void *feed_thread(void *arg)
 {
