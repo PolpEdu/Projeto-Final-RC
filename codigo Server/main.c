@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 
     if (argc != 4)
     {
-        printf("Usage: ./stock_server <PORT_ADMIN> <PORT_CLIENT> <config_file>\n");
+        printf("Usage: ./stock_server <PORT_CLIENT> <PORT_ADMIN> <config_file>\n");
         exit(-1);
     }
 
