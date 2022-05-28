@@ -160,7 +160,6 @@ void process_client(int client_fd, struct AcaoList *acao_list, struct UsrList *u
     pthread_join(feed, NULL);
     close(client_fd);
 
-    close(client_fd);
 }
 
 void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root)
@@ -214,6 +213,8 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
     socklen_t slen = sizeof(si_outra);
     char buf[BUFLEN];
 
+
+
     // Cria um socket para recepção de pacotes UDP
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -234,19 +235,6 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
 
     printf("[SERVER UDP] Waiting for packets\n");
 
-   while(1){
-        if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen)) == -1)
-        {
-        erro("Erro no recvfrom");
-        }
-        
-        buf[recv_len] = '\0';
-        if (strcmp(buf, "X") == 0){
-        continue;
-        }
-        else{break;}
-        
-    }
     
     // ask for authentication (if not, send error message)
 
@@ -258,14 +246,10 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
         buf[recv_len] = '\0';
 
         char *username;
-    char *password;
-    char *saldo;
-    char *bolsas;
-    char *bolsas2;
-        if (strcmp(buf, "X") == 0){
-        continue;
-        }
-        else{break;}
+        char *password;
+        char *saldo;
+        char *bolsas;
+        char *bolsas2;
 
         printf("Client[%s:%d] %s\n", inet_ntoa(si_outra.sin_addr), ntohs(si_outra.sin_port), buf);
 
@@ -307,7 +291,7 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
 
             if (user_exists(username, users_list))
             {
-                printf("[CLIENT] User already exists!\n");
+                sendto(s, "[SERVER] USER ALREADY EXISTS\n", strlen("[SERVER] USER ALREADY EXISTS\n"), 0, (struct sockaddr *)&si_outra, slen);
                 continue;
             }
 
@@ -321,7 +305,7 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
             int saldo_int = atoi(saldo);
             if (saldo_int < 0)
             {
-                printf("[CLIENT] The saldo is invalid!\n");
+                sendto(s, "[SERVER] INVALID SALDO\n", strlen("[SERVER] INVALID SALDO\n"), 0, (struct sockaddr *)&si_outra, slen);
                 return -1;
             }
             user->saldo = saldo_int;
@@ -346,9 +330,12 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
             if (!user_exists(username, users_list))
             {
                 printf("User does not exist!\n");
+                sendto(s, "[SERVER] USER DOES NOT EXIST\n", strlen("[SERVER] USER DOES NOT EXIST\n"), 0, (struct sockaddr *)&si_outra, slen);
                 continue;
             }
-            printf("[CLIENT] Deleting User: %s\n", username);
+            char jj[BUFLEN];
+            sprintf(jj, "[SERVER] USER %s DELETED\n", username);
+            sendto(s, jj, strlen(jj), 0, (struct sockaddr *)&si_outra, slen);
             delete_user(users_list, username);
 
             save_to_file();
@@ -356,13 +343,13 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
         // comand has this format LIST
         else if (strcmp(command, "LIST") == 0)
         {
-            list_users(users_list);
+           list_users(users_list, s, &si_outra, slen);
         }
         // comand has this format REFRESH {segundos}
         else if (strcmp(command, "REFRESH") == 0)
         {
             char *segundos = strtok(NULL, " ");
-            refresh_time(segundos);
+            refresh_time(segundos,s, &si_outra, slen);
         }
         // comand has this format QUIT
         else if (strcmp(command, "QUIT") == 0)
@@ -374,15 +361,22 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
             {
                 erro("Erro no sendto");
             }
-            break;
+            close(s);
+            continue;
         }
         else if (strcmp(command, "QUIT_SERVER") == 0)
         { // qual é a diferença, SAIR DO SERVER
-            return 1;
+            printf("[SERVER] Quitting...\n");
+            
+            break;
         }
         else
         {
             printf("[CLIENT] Invalid command: %s\n", command);
+            // SENDTO CLIENT
+            char invalid_command[BUFLEN];
+            sprintf(invalid_command, "[SERVER] INVALID COMMAND %s\n", command);
+            sendto(s, invalid_command, strlen(invalid_command), 0, (struct sockaddr *)&si_outra, slen);
         }
     }
     close(s);
@@ -628,7 +622,7 @@ int user_exists(char *username, struct UsrList *users_list)
     return 0;
 }
 
-void refresh_time(char *segundos)
+void refresh_time(char *segundos, int socket_fd, struct sockaddr_in *cli_addr, socklen_t slen )
 {
     // write the user to the database
     // parse seconds to int
@@ -637,6 +631,10 @@ void refresh_time(char *segundos)
     shm->refresh_time = atoi(segundos);
 
     printf("Refresh time set to %d seconds\n", shm->refresh_time);
+    char toprint[100] = "Refresh time set to ";
+    strcat(toprint, segundos);
+    strcat(toprint, "\n");
+    sendto(socket_fd, toprint, strlen(toprint), 0, (struct sockaddr *)cli_addr, slen);
 }
 
 void delete_user(struct UsrList *users_list, char *username)
@@ -655,28 +653,57 @@ void delete_user(struct UsrList *users_list, char *username)
     }
 }
 
-void list_users(struct UsrList *users_list)
+void list_users(struct UsrList *users_list, int socket_fd, struct sockaddr_in *cli_addr, socklen_t slen )
+
 {
     struct UsrList *aux = users_list->next;
+        char toprint[6000] = "";
     while (aux != NULL)
     {
         if (aux->user->bolsa1 == NULL)
         {
             printf("%s - %d\n", aux->user->name, aux->user->saldo);
+            strcat(toprint, aux->user->name);
+            strcat(toprint, " - ");
+            char saldo[10];
+            sprintf(saldo, "%d", aux->user->saldo);
+            strcat(toprint, saldo);
+            strcat(toprint, "\n");
         }
         else
         {
             if (aux->user->bolsa2 == NULL)
             {
+
                 printf("%s - %d - %s\n", aux->user->name, aux->user->saldo, aux->user->bolsa1);
+                strcat(toprint, aux->user->name);
+                strcat(toprint, " - ");
+                char saldo[10];
+                sprintf(saldo, "%d", aux->user->saldo);
+                strcat(toprint, saldo);
+                strcat(toprint, " - ");
+                strcat(toprint, aux->user->bolsa1);
+                strcat(toprint, "\n");
+
             }
             else
             {
                 printf("%s - %d - %s - %s\n", aux->user->name, aux->user->saldo, aux->user->bolsa1, aux->user->bolsa2);
+                strcat(toprint, aux->user->name);
+                strcat(toprint, " - ");
+                char saldo[10];
+                sprintf(saldo, "%d", aux->user->saldo);
+                strcat(toprint, saldo);
+                strcat(toprint, " - ");
+                strcat(toprint, aux->user->bolsa1);
+                strcat(toprint, " - ");
+                strcat(toprint, aux->user->bolsa2);
+                strcat(toprint, "\n");
             }
         }
         aux = aux->next;
     }
+    sendto(socket_fd, toprint, strlen(toprint), 0, (struct sockaddr *)cli_addr, slen);
 }
 
 void list_stocks(struct AcaoList *acao_list)

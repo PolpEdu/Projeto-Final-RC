@@ -1,7 +1,6 @@
 admin/pass
-7
-User1;pass1;32;BINANCE;FTX
-User2;pass2;20;BINANCE;GATEIO
+6
+User2;pass2;20;BINANC;GATEIO
 Lol;xd;20;GATEIO
 dksja;kjd;20;GATEIO
 djskd;djk;20;BINANCE

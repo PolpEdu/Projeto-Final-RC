@@ -97,9 +97,9 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
 void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root);
 void erro(char *msg);
 void delete_user(struct UsrList *users_list, char *username);
-void list_users(struct UsrList *users_list);
+void list_users(struct UsrList *users_list, int socket_fd, struct sockaddr_in *cli_addr, socklen_t slen );
 void list_stocks(struct AcaoList *acao_list);
-void refresh_time(char *segundos);
+void refresh_time(char *segundos, int socket_fd, struct sockaddr_in *cli_addr, socklen_t slen );
 int user_exists(char *username, struct UsrList *users_list);
 void append_user(struct UsrList *users_list, struct NormalUser *user);
 void append_acao(struct AcaoList *acao_list, struct Acao *acao);

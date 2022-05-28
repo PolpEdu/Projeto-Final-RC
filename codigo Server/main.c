@@ -173,14 +173,14 @@ int main(int argc, char *argv[])
         i++;
     }
     // list the root user, all the normal users, and all the stocks
-    printf("Root user: %s %s\n", root->name, root->password);
+    /* printf("Root user: %s %s\n", root->name, root->password);
 
     printf("List of stocks:\n");
     list_stocks(acao_list);
 
     // print all the users
     printf("List of users:\n");
-    list_users(users_list);
+    //list_users(users_list); */
 
     // assign to shared the memory
     int shmid = shmget(IPC_PRIVATE, sizeof(struct SharedMemory), IPC_CREAT | 0700);
