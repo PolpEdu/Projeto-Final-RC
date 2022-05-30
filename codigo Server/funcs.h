@@ -89,10 +89,7 @@ struct sockaddr_in client_addr;
 struct hostent *hostPtr;
 struct ip_mreq mreq;
 
-
-void *pricesVolutality();
 void *feed_thread(void *arg);
-int check_valid_admin_cred(struct RootUser *root_user, char *name, char *password);
 int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root);
 void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root);
 void erro(char *msg);
@@ -103,12 +100,9 @@ void refresh_time(char *segundos, int socket_fd, struct sockaddr_in *cli_addr, s
 int user_exists(char *username, struct UsrList *users_list);
 void append_user(struct UsrList *users_list, struct NormalUser *user);
 void append_acao(struct AcaoList *acao_list, struct Acao *acao);
-int get_users_size(struct UsrList *users_list);
-int get_acao_size(struct AcaoList *acao_list);
+int userSize(struct UsrList *users_list);
 struct NormalUser *get_user(struct UsrList *users_list, int index);
-struct Acao *get_acao(struct AcaoList *acao_list, int index);
-int get_markets_size(struct AcaoList *acao_list);
 void save_to_file();
-void write_users_tofile(struct UsrList *users_list);
-struct NormalUser *get_user_by_name(char *username, struct UsrList *users_list);
+struct NormalUser *UserbyName(char *username, struct UsrList *users_list);
+void menu();
 #endif // FOO_H

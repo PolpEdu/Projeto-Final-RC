@@ -10,7 +10,7 @@ pthread_mutex_t feedmutex = PTHREAD_MUTEX_INITIALIZER;
 (..)
 */
 
-void process_client(int client_fd, struct AcaoList *acao_list, struct UsrList *users_list)
+void clientep(int client_fd, struct AcaoList *acao_list, struct UsrList *users_list)
 {
     int nread = 1;
     char buffer[BUF_SIZE];
@@ -19,20 +19,14 @@ void process_client(int client_fd, struct AcaoList *acao_list, struct UsrList *u
     char password[BUF_SIZE];
     int out = 1;
     char inputsMenu[200] = "1 - Live Feed\n2 - Turn Off Feed\n3 - Subscribe\n4 - Show wallet contents\n5 - BUY\n6 - SELL\n7 - EXIT\n";
-
-    // save the user logged in
     struct NormalUser *user = malloc(sizeof(struct NormalUser));
 
     while (nread > 0)
     {
-
-        // send to the client asking for auth
         send(client_fd, "AUTH", 5, 0);
-        // receive the answer
         nread = read(client_fd, buffer, BUF_SIZE + 1);
         buffer[nread] = '\0';
 
-        // split buffer with ;
         token = strtok(buffer, ";");
         strcpy(username, token);
 
@@ -42,9 +36,7 @@ void process_client(int client_fd, struct AcaoList *acao_list, struct UsrList *u
         printf("username: %s\n", username);
         printf("password: %s\n", password);
 
-        // list_users(users_list);
-
-        user = get_user_by_name(username, users_list);
+        user = UserbyName(username, users_list);
         if (user == NULL)
         {
             printf("User not found\n");
@@ -64,54 +56,45 @@ void process_client(int client_fd, struct AcaoList *acao_list, struct UsrList *u
             out = 0;
             break;
         }
-
         if (out == 1)
         {
             send(client_fd, "LOGIN FAILED, TRY AGAIN", 24, 0);
         }
         fflush(stdout);
     }
-
     pthread_t feed;
     struct threadinfo info_feed;
     info_feed.fd = client_fd;
     info_feed.user = user;
-
     int feed_status = 0;
-
-    // check the user's bolsas
     if (user->bolsa1 == NULL && user->bolsa2 == NULL)
     {
-        send(client_fd, "NO BOLSAS", 9, 0);
+        send(client_fd, "ANY WALLET", 9, 0);
         close(client_fd);
         exit(0);
     }
 
     sleep(1);
-
-    // loop through the acoes in the shared memory
+    
     struct AcaoList *aux = acao_list;
     while (aux != NULL)
     {
-        char info_Acao[150] = "ACAO: ";
+        char acaoString[150] = "ACAO: ";
         char auxfloat[10];
-        // check if the user is subscribed to the acao
         if (strcmp(user->bolsa1, aux->acao->mercado) == 0 || strcmp(user->bolsa2, aux->acao->mercado) == 0)
         {
-            strcat(info_Acao, aux->acao->nomestock);
-            strcat(info_Acao, " ");
-            strcat(info_Acao, aux->acao->mercado);
-            strcat(info_Acao, " ");
-            strcat(info_Acao, "PRICE: ");
+            strcat(acaoString, aux->acao->nomestock);
+            strcat(acaoString, " ");
+            strcat(acaoString, aux->acao->mercado);
+            strcat(acaoString, " ");
+            strcat(acaoString, "PRICE: ");
             sprintf(auxfloat, "%f", aux->acao->currentprice);
-            strcat(info_Acao, auxfloat);
-            strcat(info_Acao, "\n");
-            send(client_fd, info_Acao, strlen(info_Acao), 0);
+            strcat(acaoString, auxfloat);
+            strcat(acaoString, "\n");
+            send(client_fd, acaoString, strlen(acaoString), 0);
         }
-
         aux = aux->next;
     }
-
     do
     {
         write(client_fd, inputsMenu, strlen(inputsMenu) + 1);
@@ -167,7 +150,6 @@ void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *user
     int fd, client;
     struct sockaddr_in addr, client_addr;
     int client_addr_size;
-    /* pthread_t feed; */
 
     bzero((void *)&addr, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -176,21 +158,18 @@ void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *user
     fd = socket(AF_INET, SOCK_STREAM, 0);
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
     if (fd < 0)
-        erro("na funcao socket");
+        erro("in socket");
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-        erro("na funcao bind");
+        erro("in bind");
     if (listen(fd, 5) < 0)
-        erro("na funcao listen");
+        erro("in listen");
     client_addr_size = sizeof(client_addr);
     printf("[SERVER TCP] Started.\n");
-    /* pthread_create(&feed, NULL, feed_thread, NULL); */
+    
     while (1)
     {
-        // clean finished child processes, avoiding zombies
-        // must use WNOHANG or would block whenever a child process was working
         while (waitpid(-1, NULL, WNOHANG) > 0)
             ;
-        // wait for new connection
         client = accept(fd, (struct sockaddr *)&client_addr, (socklen_t *)&client_addr_size);
         if (client > 0)
         {
@@ -198,7 +177,7 @@ void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *user
             if (fork() == 0)
             {
                 close(fd);
-                process_client(client, acao_list, users_list);
+                clientep(client, acao_list, users_list);
                 exit(0);
             }
             close(client);
@@ -208,94 +187,64 @@ void tcp_server(int PORT_ADMIN, struct AcaoList *acao_list, struct UsrList *user
 
 int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list, struct RootUser *root)
 {
-    
     int s, recv_len;
     socklen_t slen = sizeof(si_outra);
     char buf[BUFLEN];
-
-
-
-    // Cria um socket para recepção de pacotes UDP
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
-        erro("Erro na criação do socket do cliente.");
+        erro("It was not possible to create the socket");
     }
-
-    // Preenchimento da socket address structure
     si_minha.sin_family = AF_INET;
     si_minha.sin_port = htons(PORT);
     si_minha.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    // Associa o socket à informação de endereço
     if (bind(s, (struct sockaddr *)&si_minha, sizeof(si_minha)) == -1)
     {
-        erro("Erro no bind do cliente");
+        erro("Error in client bind");
     }
-
-
     printf("[SERVER UDP] Waiting for packets\n");
-
-    
-    // ask for authentication (if not, send error message)
-
     while(1) {
         if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen)) == -1)
         {
         erro("Erro no recvfrom");
         }
         buf[recv_len] = '\0';
-
         char *username;
         char *password;
         char *saldo;
         char *bolsas;
         char *bolsas2;
-
         printf("Client[%s:%d] %s\n", inet_ntoa(si_outra.sin_addr), ntohs(si_outra.sin_port), buf);
-
         char *command = strtok(buf, " \n");
-
-        // comand has this format ADD_USER {username} {password} {saldo} {bolsa1} {bolsa2}
         if (strcmp(command, "ADD_USER") == 0)
         {
-
             username = strtok(NULL, " ");
             password = strtok(NULL, " ");
             saldo = strtok(NULL, " ");
             bolsas = strtok(NULL, " ");
             bolsas2 = strtok(NULL, " ");
-
             if (bolsas == NULL)
             {
                 bolsas = malloc(1);
                 bolsas[0] = '\0';
             }
             else
-            {
-                // remove \n from bolsas and replace it with \0
+            { 
                 bolsas[strlen(bolsas) - 1] = '\0';
             }
-
             if (bolsas2 == NULL)
             {
                 bolsas2 = malloc(1);
                 bolsas2[0] = '\0';
             }
             else
-            {
-                // remove \n from bolsas2 and replace it with \0
+            {  
                 bolsas2[strlen(bolsas2) - 1] = '\0';
             }
-
-            // printf("%s %s %s %s\n", username, password, saldo, bolsas);
-
             if (user_exists(username, users_list))
             {
                 sendto(s, "[SERVER] USER ALREADY EXISTS\n", strlen("[SERVER] USER ALREADY EXISTS\n"), 0, (struct sockaddr *)&si_outra, slen);
                 continue;
             }
-
-            // printf("User: %s Password: %s Saldo: %s\n", username, password, saldo);
 
             struct NormalUser *user = malloc(sizeof(struct NormalUser));
             user->name = malloc(strlen(username) + 1);
@@ -315,18 +264,14 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
 
             user->bolsa2 = malloc(strlen(bolsas2) + 1);
             strcpy(user->bolsa2, bolsas2);
-
             append_user(users_list, user);
-
             save_to_file();
         }
-        // comand has this format DEL {username}
+        
         else if (strcmp(command, "DEL") == 0)
         {
             username = strtok(NULL, " ");
-            // find \n and replace it with \0
             username[strlen(username) - 1] = '\0';
-
             if (!user_exists(username, users_list))
             {
                 printf("User does not exist!\n");
@@ -340,23 +285,18 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
 
             save_to_file();
         }
-        // comand has this format LIST
         else if (strcmp(command, "LIST") == 0)
         {
            list_users(users_list, s, &si_outra, slen);
         }
-        // comand has this format REFRESH {segundos}
         else if (strcmp(command, "REFRESH") == 0)
         {
             char *segundos = strtok(NULL, " ");
             refresh_time(segundos,s, &si_outra, slen);
         }
-        // comand has this format QUIT
         else if (strcmp(command, "QUIT") == 0)
         {
             printf("[CLIENT] Quitting...\n");
-            // DISCONNECT CLIENT
-            // send QUIT to client
             if (sendto(s, "QUIT", strlen("QUIT"), 0, (struct sockaddr *)&si_outra, slen) == -1)
             {
                 erro("Erro no sendto");
@@ -365,15 +305,13 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
             continue;
         }
         else if (strcmp(command, "QUIT_SERVER") == 0)
-        { // qual é a diferença, SAIR DO SERVER
+        { 
             printf("[SERVER] Quitting...\n");
-            
             break;
         }
         else
         {
             printf("[CLIENT] Invalid command: %s\n", command);
-            // SENDTO CLIENT
             char invalid_command[BUFLEN];
             sprintf(invalid_command, "[SERVER] INVALID COMMAND %s\n", command);
             sendto(s, invalid_command, strlen(invalid_command), 0, (struct sockaddr *)&si_outra, slen);
@@ -382,42 +320,6 @@ int udp_server(int PORT, struct AcaoList *acao_list, struct UsrList *users_list,
     close(s);
     return 0;
 }
-
-    /* if (strcmp(buf, "AUTH") == 0)
-    {
-        printf("[SERVER UDP] AUTH\n");
-        // send to the client asking for auth
-        sendto(s, "AUTH", 5, 0, (struct sockaddr *)&si_outra, slen);
-        // receive the answer
-        recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_outra, (socklen_t *)&slen);
-        buf[recv_len] = '\0';
-        // split buffer with ;
-        char *token;
-        token = strtok(buf, ";");
-        username = token;
-        token = strtok(NULL, ";");
-        password = token;
-    }
-    else
-    {
-        printf("[SERVER UDP] AUTH FAILED\n");
-        sendto(s, "AUTH FAILED", 12, 0, (struct sockaddr *)&si_outra, slen);
-        return 0;
-    }
-
-    if (check_valid_admin_cred(root, username, password))
-    {
-        // send OK
-        sendto(s, "OK", 2, 0, (struct sockaddr *)&si_outra, slen);
-    }
-    else
-    {
-        // send FAIL
-        sendto(s, "FAIL", 4, 0, (struct sockaddr *)&si_outra, slen);
-    }
- */
-
-        
 
 void *feed_thread(void *arg)
 {
@@ -429,27 +331,23 @@ void *feed_thread(void *arg)
     {
         pthread_mutex_lock(&feedmutex);
         sleep(shm->refresh_time);
-
-        // loop through the acoes in the shared memory
         struct AcaoList *aux = shm->acao_list;
         while (aux != NULL)
         {
-            char info_Acao[150] = "ACAO: ";
+            char acaoString[150] = "ACAO: ";
             char auxfloat[10];
-            // check if the user is subscribed to the acao
             if (strcmp(user->bolsa1, aux->acao->mercado) == 0 || strcmp(user->bolsa2, aux->acao->mercado) == 0)
             {
-                strcat(info_Acao, aux->acao->nomestock);
-                strcat(info_Acao, " ");
-                strcat(info_Acao, aux->acao->mercado);
-                strcat(info_Acao, " ");
-                strcat(info_Acao, "PRICE: ");
+                strcat(acaoString, aux->acao->nomestock);
+                strcat(acaoString, " ");
+                strcat(acaoString, aux->acao->mercado);
+                strcat(acaoString, " ");
+                strcat(acaoString, "PRICE: ");
                 sprintf(auxfloat, "%f", aux->acao->currentprice);
-                strcat(info_Acao, auxfloat);
-                strcat(info_Acao, "\n");
-                send(client_fd, info_Acao, strlen(info_Acao), 0);
+                strcat(acaoString, auxfloat);
+                strcat(acaoString, "\n");
+                send(client_fd, acaoString, strlen(acaoString), 0);
             }
-
             aux = aux->next;
         }
         pthread_mutex_unlock(&feedmutex);
@@ -462,29 +360,9 @@ void erro(char *s)
     exit(1);
 }
 
-int get_number_of_users()
-{
-    // check the second line of the database
-    FILE *fp = fopen("database.txt", "r");
-    char *line = NULL;
-    size_t len = 0;
-
-    int i = 0;
-    while (fgets(line, len, fp) != NULL)
-    {
-        if (i == 1)
-        {
-            return atoi(line);
-        }
-        i++;
-    }
-    return 0;
-}
-// get user
-struct NormalUser *get_user_by_name(char *username, struct UsrList *users_list)
+struct NormalUser *UserbyName(char *username, struct UsrList *users_list)
 {
     struct UsrList *aux = users_list->next;
-    // printf("[CLIENT] Getting user by name: %s\n", username);
     while (aux != NULL)
     {
         printf("%s\n", aux->user->name);
@@ -497,7 +375,7 @@ struct NormalUser *get_user_by_name(char *username, struct UsrList *users_list)
     return NULL;
 }
 
-int get_users_size(struct UsrList *users_list)
+int userSize(struct UsrList *users_list)
 {
     int i = 0;
     struct UsrList *aux = users_list;
@@ -509,17 +387,6 @@ int get_users_size(struct UsrList *users_list)
     return i;
 }
 
-int get_acao_size(struct AcaoList *acao_list)
-{
-    int i = 0;
-    struct AcaoList *aux = acao_list;
-    while (aux != NULL)
-    {
-        i++;
-        aux = aux->next;
-    }
-    return i;
-}
 
 void append_user(struct UsrList *users_list, struct NormalUser *user)
 {
@@ -529,27 +396,10 @@ void append_user(struct UsrList *users_list, struct NormalUser *user)
         aux = aux->next;
     }
     aux->next = malloc(sizeof(struct UsrList));
-
     aux->next->user = user;
-
     aux->next->next = NULL;
 }
 
-struct Acao *get_acao(struct AcaoList *acao_list, int index)
-{
-    int i = 0;
-    struct AcaoList *aux = acao_list;
-    while (aux != NULL)
-    {
-        if (i == index)
-        {
-            return aux->acao;
-        }
-        i++;
-        aux = aux->next;
-    }
-    return NULL;
-}
 
 struct NormalUser *get_user(struct UsrList *users_list, int index)
 {
@@ -567,25 +417,6 @@ struct NormalUser *get_user(struct UsrList *users_list, int index)
     return NULL;
 }
 
-void *pricesVolutality()
-{
-    while (1)
-    {
-        sleep(shm->refresh_time);
-        // loop through acoes
-        struct AcaoList *aux = shm->acao_list;
-        while (aux != NULL)
-        {
-            // variate the prices of the acoes by
-            // a random number between -5 and 5
-            int variacao = rand() % 10 - 5;
-            aux->acao->currentprice = aux->acao->currentprice + variacao;
-            aux = aux->next;
-        }
-
-        save_to_file();
-    }
-}
 
 void append_acao(struct AcaoList *acao_list, struct Acao *acao)
 {
@@ -624,17 +455,13 @@ int user_exists(char *username, struct UsrList *users_list)
 
 void refresh_time(char *segundos, int socket_fd, struct sockaddr_in *cli_addr, socklen_t slen )
 {
-    // write the user to the database
-    // parse seconds to int
-
-    // set the shared memory to the new time
     shm->refresh_time = atoi(segundos);
 
     printf("Refresh time set to %d seconds\n", shm->refresh_time);
-    char toprint[100] = "Refresh time set to ";
-    strcat(toprint, segundos);
-    strcat(toprint, "\n");
-    sendto(socket_fd, toprint, strlen(toprint), 0, (struct sockaddr *)cli_addr, slen);
+    char finalstring[100] = "Refresh time set to ";
+    strcat(finalstring, segundos);
+    strcat(finalstring, "\n");
+    sendto(socket_fd, finalstring, strlen(finalstring), 0, (struct sockaddr *)cli_addr, slen);
 }
 
 void delete_user(struct UsrList *users_list, char *username)
@@ -657,18 +484,18 @@ void list_users(struct UsrList *users_list, int socket_fd, struct sockaddr_in *c
 
 {
     struct UsrList *aux = users_list->next;
-        char toprint[6000] = "";
+        char finalstring[6000] = "";
     while (aux != NULL)
     {
         if (aux->user->bolsa1 == NULL)
         {
             printf("%s - %d\n", aux->user->name, aux->user->saldo);
-            strcat(toprint, aux->user->name);
-            strcat(toprint, " - ");
+            strcat(finalstring, aux->user->name);
+            strcat(finalstring, " - ");
             char saldo[10];
             sprintf(saldo, "%d", aux->user->saldo);
-            strcat(toprint, saldo);
-            strcat(toprint, "\n");
+            strcat(finalstring, saldo);
+            strcat(finalstring, "\n");
         }
         else
         {
@@ -676,44 +503,34 @@ void list_users(struct UsrList *users_list, int socket_fd, struct sockaddr_in *c
             {
 
                 printf("%s - %d - %s\n", aux->user->name, aux->user->saldo, aux->user->bolsa1);
-                strcat(toprint, aux->user->name);
-                strcat(toprint, " - ");
+                strcat(finalstring, aux->user->name);
+                strcat(finalstring, " - ");
                 char saldo[10];
                 sprintf(saldo, "%d", aux->user->saldo);
-                strcat(toprint, saldo);
-                strcat(toprint, " - ");
-                strcat(toprint, aux->user->bolsa1);
-                strcat(toprint, "\n");
+                strcat(finalstring, saldo);
+                strcat(finalstring, " - ");
+                strcat(finalstring, aux->user->bolsa1);
+                strcat(finalstring, "\n");
 
             }
             else
             {
                 printf("%s - %d - %s - %s\n", aux->user->name, aux->user->saldo, aux->user->bolsa1, aux->user->bolsa2);
-                strcat(toprint, aux->user->name);
-                strcat(toprint, " - ");
+                strcat(finalstring, aux->user->name);
+                strcat(finalstring, " - ");
                 char saldo[10];
                 sprintf(saldo, "%d", aux->user->saldo);
-                strcat(toprint, saldo);
-                strcat(toprint, " - ");
-                strcat(toprint, aux->user->bolsa1);
-                strcat(toprint, " - ");
-                strcat(toprint, aux->user->bolsa2);
-                strcat(toprint, "\n");
+                strcat(finalstring, saldo);
+                strcat(finalstring, " - ");
+                strcat(finalstring, aux->user->bolsa1);
+                strcat(finalstring, " - ");
+                strcat(finalstring, aux->user->bolsa2);
+                strcat(finalstring, "\n");
             }
         }
         aux = aux->next;
     }
-    sendto(socket_fd, toprint, strlen(toprint), 0, (struct sockaddr *)cli_addr, slen);
-}
-
-void list_stocks(struct AcaoList *acao_list)
-{
-    struct AcaoList *aux = acao_list->next;
-    while (aux != NULL)
-    {
-        printf("%s - %s @ %f\n", aux->acao->mercado, aux->acao->nomestock, aux->acao->currentprice);
-        aux = aux->next;
-    }
+    sendto(socket_fd, finalstring, strlen(finalstring), 0, (struct sockaddr *)cli_addr, slen);
 }
 
 int get_users_lenght(struct UsrList *users_list)
@@ -734,24 +551,18 @@ void save_to_file()
     struct UsrList *users_list = shm->users_list;
     struct AcaoList *acao_list = shm->acao_list;
     struct RootUser *root_user = shm->root;
-    // check if database has something inside, if it does delete it
     FILE *fp = fopen("database.txt", "w");
     char *together = malloc(sizeof(char) * 500);
-    memset(together, 0, 500); //! important
+    memset(together, 0, 500); 
 
-    char *toprint = malloc(sizeof(char) * 3000);
-    memset(toprint, 0, 3000); //! important
-
-    // write root user:
+    char *finalstring = malloc(sizeof(char) * 3000);
+    memset(finalstring, 0, 3000); 
     sprintf(together, "%s/%s", root_user->name, root_user->password);
 
-    strcat(toprint, together);
-
-    // write users:
-    // get users lenght
+    strcat(finalstring, together);
     int users_lenght = get_users_lenght(users_list);
     sprintf(together, "%d\n", users_lenght);
-    strcat(toprint, together);
+    strcat(finalstring, together);
 
     struct UsrList *aux = users_list->next;
     while (aux != NULL)
@@ -771,40 +582,63 @@ void save_to_file()
         {
             sprintf(together, "%s;%s;%d\n", aux->user->name, aux->user->password, aux->user->saldo);
         }
-        //  add \n to the end of the string
+        
 
-        strcat(toprint, together);
+        strcat(finalstring, together);
         aux = aux->next;
     }
-    // printf("%s\n", toprint);
-
-    // write acao_list:
     struct AcaoList *aux2 = acao_list->next;
     while (aux2 != NULL)
     {
         sprintf(together, "%s;%s;%f\n", aux2->acao->mercado, aux2->acao->nomestock, aux2->acao->currentprice);
-        strcat(toprint, together);
+        strcat(finalstring, together);
         aux2 = aux2->next;
     }
-    // add \0 at the end of toprint
-    strcat(toprint, "\0");
-
-    // for each char in toprint, put in database.txt
+    strcat(finalstring, "\0");
     int i = 0;
-    while (toprint[i] != '\0')
+    while (finalstring[i] != '\0')
     {
-        // printf("%c", toprint[i]);
-        fputc(toprint[i], fp);
+        fputc(finalstring[i], fp);
         i++;
     }
 
     sem_post(&shm->sem_write);
-    // close file
     fflush(fp);
     fclose(fp);
 }
 
-int check_valid_admin_cred(struct RootUser *root_user, char *name, char *password)
-{
-    return strcmp(root_user->name, name) == 0 && strcmp(root_user->password, password) == 0;
+
+
+void menu(){
+    
+    int choice =-1;
+    while(choice!= 7){
+        printf("1 - Live Feed\n2 - Turn Off Feed\n3 - Subscribe\n4 - Show wallet contents\n5 - BUY\n6 - SELL\n7 - EXIT\n");
+        scanf("%d", &choice);
+        if (choice == 1)
+        {
+            printf("Live Feed\n");
+        }
+        else if (choice == 2)
+        {
+            printf("Turn Off Feed\n");
+        }
+        else if (choice == 3)
+        {
+            printf("Subscribe\n");
+        }
+        else if (choice == 4)
+        {
+            printf("Show wallet contents\n");
+        }
+        else if (choice == 5)
+        {
+            printf("BUY\n");
+        }
+        else if (choice == 6)
+        {
+            printf("SELL\n");
+        }
+         
+    }
 }

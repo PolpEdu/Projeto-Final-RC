@@ -1,7 +1,7 @@
 
 OBJS=	funcs.h main.c funcs.c 
 FLAGS = -Wall -pthread
-OBJSclient = client.c
+OBJSclient = funcs.h client.c funcs.c
 GCC=	gcc
 PROG= 	stock_server
 PROGC = operations_terminal
